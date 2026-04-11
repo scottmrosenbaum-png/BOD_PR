@@ -5,60 +5,53 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export async function POST(req: Request) {
   const body = await req.json();
-  const { stage, announcementType, companyName, newsHook, newsImpact, quoteName, quoteTitle, quoteText, boilerplate, eventSpecific, clarifyingAnswers } = body;
+  const { stage, announcementType, companyName, newsHook, quoteName, quoteTitle, quoteText, boilerplate, eventSpecific, clarifyingAnswers } = body;
 
-  let prompt = "";
-
-  if (stage === "suggest_fields") {
-    prompt = `The user is announcing a "${announcementType}" in the drinks/cannabis industry. 
-    Suggest 3 to 5 technical category labels required for this specific news. 
-    EXAMPLES: 
-    - For Brand Launch: 'Launch Date', 'Launch City', 'Initial Markets'.
-    - For New Hire: 'Full Name of Hire', 'New Title', 'Previous Company'.
-    - For Product: 'ABV/Potency', 'SRP (Price)', 'Availability'.
-    Return ONLY JSON: {"fields": [{"id": "f1", "label": "Label Name"}]}`;
-  } 
-  
-  else if (stage === "audit") {
-    prompt = `Audit this news hook for a "${announcementType}": "${newsHook}". 
-    Rate 1-10 and give 1 sentence of blunt PR advice. 
-    Return JSON: {"score": "8", "feedback": "..."}`;
+  if (stage === "audit") {
+    const prompt = `Act as a PR strategist. Audit this news: ${newsHook}. 
+    Rate 1-10 on 'Newsworthiness' and give 1 sentence of blunt feedback. 
+    Return JSON: { "score": number, "feedback": "string" }`;
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [{ role: "user", content: prompt }],
+      response_format: { type: "json_object" }
+    });
+    return NextResponse.json(JSON.parse(completion.choices[0].message.content!));
   }
 
-  else if (stage === "clarify") {
-    prompt = `Based on this hook: "${newsHook}", ask 3 hard-hitting interview questions to make the story more "journalist-ready". 
-    Return JSON: {"questions": ["...", "...", "..."]}`;
+  if (stage === "clarify") {
+    const prompt = `Based on this: ${newsHook}, what 3 specific questions would a journalist ask to make this a better story? 
+    Return JSON: { "questions": ["string", "string", "string"] }`;
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [{ role: "user", content: prompt }],
+      response_format: { type: "json_object" }
+    });
+    return NextResponse.json(JSON.parse(completion.choices[0].message.content!));
   }
 
-  else if (stage === "final") {
-    prompt = `You are a Senior PR Strategist for 'Business of Drinks'. 
-    Write a professional Press Release and Media Pitch using ALL provided data.
-
-    DATA POINTS:
-    - Type: ${announcementType}
-    - Company: ${companyName}
-    - The Hook: ${newsHook}
-    - Impact: ${newsImpact}
-    - Narrative Specs: ${JSON.stringify(eventSpecific)}
-    - Spokesperson: ${quoteName}, ${quoteTitle}
-    - Quote: "${quoteText}"
-    - Interview Context: ${clarifyingAnswers?.join(" | ")}
-    - Boilerplate: ${boilerplate}
-
-    REQUIREMENTS:
-    1. DO NOT summarize. Use the specific details from Narrative Specs in the first two paragraphs.
-    2. Incorporate the Quote exactly as provided.
-    3. Use the Interview Context to add depth to the "Why Now" section.
-    4. MANDATORY: End the release with a '### About ${companyName}' section containing the full Boilerplate.
+  if (stage === "final") {
+    const prompt = `Write a high-end PR package for ${companyName} regarding ${announcementType}.
+    News: ${newsHook}. Quote from ${quoteName} (${quoteTitle}): "${quoteText}".
+    Context: ${JSON.stringify(eventSpecific)}. Clarifications: ${clarifyingAnswers.join(" ")}.
     
-    Return ONLY JSON: {"press_release": {"headline": "...", "body": "..."}, "media_pitch": "..."}`;
+    CRITICAL INSTRUCTIONS:
+    1. The Press Release MUST include the following boilerplate at the VERY END of the body: "${boilerplate}". DO NOT put it anywhere else.
+    2. Write a professional Media Pitch.
+    3. Write a LinkedIn post.
+    
+    Return ONLY JSON in this format:
+    {
+      "press_release": { "headline": "string", "body": "string" },
+      "media_pitch": "string",
+      "linkedin_post": "string"
+    }`;
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [{ role: "user", content: prompt }],
+      response_format: { type: "json_object" }
+    });
+    return NextResponse.json(JSON.parse(completion.choices[0].message.content!));
   }
-
-  const response = await openai.chat.completions.create({
-    model: "gpt-4o",
-    messages: [{ role: "system", content: "You are a specialized PR AI for the beverage and cannabis industry. Output valid JSON only." }, { role: "user", content: prompt }],
-    response_format: { type: "json_object" },
-  });
-
-  return NextResponse.json(JSON.parse(response.choices[0].message.content || "{}"));
 }

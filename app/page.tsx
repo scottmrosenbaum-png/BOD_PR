@@ -1,7 +1,6 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 
-// ... (Keeping your existing interfaces and constants exactly as they were)
 interface NarrativeField {
   id: string;
   label: string;
@@ -43,7 +42,7 @@ export default function Home() {
     eventSpecific: {} as any
   });
 
-  // --- COACH LOGIC (Keeping your existing logic) ---
+  // --- COACH LOGIC ---
   const getHookTip = () => {
     const hook = formData.newsHook.toLowerCase();
     if (!hook) return "💡 Tip: Start with the most important facts (Who/What/When).";
@@ -134,36 +133,20 @@ export default function Home() {
 
   const isCoreReady = formData.companyName.length > 2 && formData.newsHook.length > 20;
 
-  // --- UPDATED NAVIGATION LOGIC ---
   async function goToAudit() {
     setLoading(true);
     try {
       const [auditRes, clarifyRes] = await Promise.all([
-        fetch("/api/generate-press-release", { 
-          method: "POST", 
-          body: JSON.stringify({ ...formData, stage: "audit" }) 
-        }),
-        fetch("/api/generate-press-release", { 
-          method: "POST", 
-          body: JSON.stringify({ ...formData, stage: "clarify" }) 
-        })
+        fetch("/api/generate-press-release", { method: "POST", body: JSON.stringify({ ...formData, stage: "audit" }) }),
+        fetch("/api/generate-press-release", { method: "POST", body: JSON.stringify({ ...formData, stage: "clarify" }) })
       ]);
-
       const auditData = await auditRes.json();
       const clarifyData = await clarifyRes.json();
-
-      // THE MAGIC LEVER: Save data AND move the step
       setAudit({ score: auditData.score, feedback: auditData.feedback }); 
       setQuestions(clarifyData.questions || []);
-      
-      setStep(4); // <--- Moves from Step 3 (Synthesizing) to Step 4 (Audit results)
-
-    } catch (err) {
-      console.error(err);
-      alert("AI stalled. Check your OpenAI key or model name!");
-    } finally { 
-      setLoading(false); 
-    }
+      setStep(4);
+    } catch (err) { alert("AI stalled. Check OpenAI balance."); }
+    finally { setLoading(false); }
   }
 
   async function finalGenerate() {
@@ -171,38 +154,34 @@ export default function Home() {
     try {
       const res = await fetch("/api/generate-press-release", { 
         method: "POST", 
-        body: JSON.stringify({ 
-          ...formData, 
-          clarifyingAnswers: answers, 
-          stage: "final", 
-          style: "warm_journalist_pitch" 
-        }) 
+        body: JSON.stringify({ ...formData, clarifyingAnswers: answers, stage: "final" }) 
       });
-      
       const data = await res.json();
       setResult(data);
-      
-      setStep(5); // <--- Moves to the final Step 5 results page
-
-    } catch (err) {
-      console.error(err);
-    } finally { 
-      setLoading(false); 
-    }
+      setStep(5);
+    } catch (err) { console.error(err); }
+    finally { setLoading(false); }
   }
 
   const handleCopy = () => {
-    let text = activeTab === 'pr' 
-      ? `${result.press_release?.headline}\n\n${result.press_release?.body}\n\n###\n\nAbout ${formData.companyName}:\n${formData.boilerplate}` 
-      : activeTab === 'pitch' ? result.media_pitch : result.linkedin_post;
+    let text = "";
+    if (activeTab === 'pr') {
+        text = `${result.press_release?.headline}\n\n${result.press_release?.body}`;
+    } else if (activeTab === 'pitch') {
+        text = result.media_pitch;
+    } else {
+        text = result.linkedin_post || "";
+    }
+    
     navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const inputS = "w-full p-4 bg-white border-2 border-zinc-100 rounded-xl font-bold focus:border-brand-orange outline-none transition-all placeholder:text-zinc-300 placeholder:font-normal text-sm";
-  const tallInputS = "w-full p-4 bg-white border-2 border-zinc-100 rounded-xl font-bold focus:border-brand-orange outline-none transition-all min-h-[140px] text-sm";
+  const inputS = "w-full p-4 bg-white border-2 border-zinc-100 rounded-xl font-bold focus:border-[#FF8C00] outline-none transition-all placeholder:text-zinc-300 text-sm";
+  const tallInputS = "w-full p-4 bg-white border-2 border-zinc-100 rounded-xl font-bold focus:border-[#FF8C00] outline-none transition-all min-h-[140px] text-sm";
   const labelS = "block text-[10px] font-black uppercase text-[#FF8C00] mb-1 tracking-widest";
+  const editableBoxS = "w-full p-8 bg-white border-none focus:ring-0 outline-none font-serif text-lg leading-relaxed text-zinc-700 min-h-[600px] resize-none";
 
   const CoachBox = ({ tip }: { tip: string }) => {
     if (!tip) return null;
@@ -237,10 +216,10 @@ export default function Home() {
               <div className="text-center mb-10"><h2 className="text-xl font-black uppercase italic tracking-widest text-[#FF8C00]">Select an Announcement Type</h2></div>
               <div className="grid md:grid-cols-2 gap-4 max-w-3xl mx-auto">
                 {ANNOUNCEMENT_TYPES.map((t) => (
-                  <button key={t.type} onClick={() => { setFormData({...formData, announcementType: t.type}); setStep(2); }} className="p-8 border-2 border-zinc-100 rounded-[2.5rem] font-black hover:border-[#FF8C00] bg-white text-left uppercase transition-all flex items-center gap-6 group shadow-sm hover:shadow-2xl hover:-translate-y-1">
+                  <button key={t.type} onClick={() => { setFormData({...formData, announcementType: t.type}); setStep(2); }} className="p-8 border-2 border-zinc-100 rounded-[2.5rem] font-black hover:border-[#FF8C00] bg-white text-left uppercase transition-all flex items-center gap-6 group">
                     <span className="text-4xl group-hover:scale-110 transition-transform">{t.emoji}</span>
                     <div className="flex-grow"><span className="block text-zinc-900 group-hover:text-[#FF8C00] text-lg">{t.type}</span></div>
-                    <span className="text-zinc-300 group-hover:text-[#FF8C00] text-2xl">→</span>
+                    <span className="text-zinc-300 text-2xl">→</span>
                   </button>
                 ))}
               </div>
@@ -278,9 +257,9 @@ export default function Home() {
           )}
 
           {step === 3 && (
-            <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in text-center">
+            <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in">
               <h3 className="text-2xl font-black italic uppercase text-[#FF8C00]">Industry Narrative Details</h3>
-              <div className="bg-zinc-50 p-8 rounded-[3rem] border-2 border-zinc-100 grid md:grid-cols-2 gap-x-10 gap-y-4 text-left">
+              <div className="bg-zinc-50 p-8 rounded-[3rem] border-2 border-zinc-100 grid md:grid-cols-2 gap-x-10 gap-y-4">
                 {getFieldsByType(formData.announcementType).map((f) => (
                   <div key={f.id} className="space-y-1">
                     <label className={labelS}>{f.label}</label>
@@ -306,18 +285,11 @@ export default function Home() {
                   </div>
                 ))}
               </div>
-              <div className="space-y-1 text-left">
+              <div className="space-y-1">
                 <label className={labelS}>About {formData.companyName} (Boilerplate)</label>
                 <textarea className={`${inputS} h-28 text-xs font-normal`} value={formData.boilerplate} onChange={e => setFormData({...formData, boilerplate: e.target.value})} placeholder="History, location, mission..." />
                 <CoachBox tip={getBoilerplateTip()} />
               </div>
-              {/* Optional: Add a "Synthesizing" state directly here if you prefer it over the bottom button */}
-              {loading && (
-                 <div className="mt-8 flex flex-col items-center gap-4">
-                    <div className="animate-spin h-10 w-10 border-4 border-[#FF8C00] border-t-transparent rounded-full"></div>
-                    <p className="font-black italic uppercase text-[#FF8C00]">Synthesizing Strategy...</p>
-                 </div>
-              )}
             </div>
           )}
 
@@ -339,56 +311,41 @@ export default function Home() {
           {step === 5 && result && (
             <div className="space-y-6 animate-in fade-in max-w-5xl mx-auto">
               <div className="flex flex-col md:flex-row justify-between items-center gap-6 border-b-4 border-zinc-900 pb-4">
-                <h2 className="text-4xl font-black italic uppercase">The Package</h2>
-                <button onClick={handleCopy} className="min-w-[180px] px-10 py-4 bg-[#FF8C00] text-white rounded-2xl font-black uppercase text-xs shadow-xl transition-all hover:bg-zinc-900 active:scale-95">{copied ? 'Copied!' : 'Copy To Clipboard'}</button>
+                <div>
+                  <h2 className="text-4xl font-black italic uppercase italic">The Package</h2>
+                  <p className="text-[10px] font-bold text-zinc-500 uppercase mt-1 tracking-widest">✨ Instruction: You can click and edit any text below directly.</p>
+                </div>
+                <button onClick={handleCopy} className="min-w-[180px] px-10 py-4 bg-[#FF8C00] text-white rounded-2xl font-black uppercase text-xs shadow-xl transition-all hover:bg-zinc-900 active:scale-95">{copied ? 'Copied!' : 'Copy Current Tab'}</button>
               </div>
               <div className="flex gap-2 bg-zinc-100 p-1.5 rounded-2xl w-fit">
                 {[{id: 'pr', label: 'Press Release'}, {id: 'pitch', label: 'Media Pitch'}, {id: 'social', label: 'Social Post'}].map((tab) => (
-                  <button key={tab.id} onClick={() => setActiveTab(tab.id as any)} className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase transition-all ${activeTab === tab.id ? 'bg-white text-[#FF8C00] shadow-sm' : 'text-zinc-400 hover:text-zinc-600'}`}>{tab.label}</button>
+                  <button key={tab.id} onClick={() => setActiveTab(tab.id as any)} className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase transition-all ${activeTab === tab.id ? 'bg-white text-[#FF8C00] shadow-sm' : 'text-zinc-400'}`}>{tab.label}</button>
                 ))}
               </div>
-              <div className="p-10 border-2 border-zinc-100 rounded-[3rem] bg-white min-h-[500px] shadow-sm">
+              <div className="border-2 border-zinc-100 rounded-[3rem] bg-white overflow-hidden shadow-sm">
                 {activeTab === 'pr' && (
-                  <div className="space-y-8 animate-in fade-in duration-500">
-                    <h1 className="text-3xl font-black text-center uppercase tracking-tighter">{result.press_release?.headline}</h1>
-                    <div className="text-sm font-black uppercase text-center border-y py-2 border-zinc-100">FOR IMMEDIATE RELEASE</div>
-                    <div className="whitespace-pre-wrap leading-relaxed text-zinc-700 font-serif text-lg">
-                      {result.press_release?.body}
-                      {"\n\n###\n\n"}
-                      <strong>About {formData.companyName}:</strong>{"\n"}
-                      {formData.boilerplate}
-                    </div>
+                  <div className="flex flex-col">
+                    <input className="w-full text-3xl font-black text-center uppercase tracking-tighter p-8 border-b border-zinc-100 outline-none bg-zinc-50/20" value={result.press_release?.headline || ""} onChange={(e) => setResult({...result, press_release: {...result.press_release, headline: e.target.value}})} />
+                    <textarea className={editableBoxS} value={result.press_release?.body || ""} onChange={(e) => setResult({...result, press_release: {...result.press_release, body: e.target.value}})} />
                   </div>
                 )}
                 {activeTab === 'pitch' && (
-                  <div className="space-y-4 animate-in fade-in duration-500">
-                    <div className="whitespace-pre-wrap leading-relaxed text-zinc-800 font-sans text-base">
-                      {result.media_pitch}
-                    </div>
-                  </div>
+                  <textarea className={`${editableBoxS} font-sans text-base`} value={result.media_pitch || ""} onChange={(e) => setResult({...result, media_pitch: e.target.value})} />
                 )}
                 {activeTab === 'social' && (
-                  <div className="whitespace-pre-wrap text-zinc-700 font-sans text-base p-8 rounded-3xl bg-zinc-50 border border-zinc-100 animate-in fade-in duration-500">
-                    {result.linkedin_post}
-                  </div>
+                  <textarea className={`${editableBoxS} font-sans text-base bg-zinc-50/50`} value={result.linkedin_post || ""} onChange={(e) => setResult({...result, linkedin_post: e.target.value})} />
                 )}
               </div>
             </div>
           )}
         </div>
 
-        {step > 1 && (
+        {step > 1 && step < 5 && (
           <div className="px-8 py-6 bg-zinc-50 border-t border-zinc-100 flex gap-4">
             <button onClick={() => setStep(step - 1)} className="flex-1 py-5 bg-white border-2 border-zinc-100 font-black uppercase rounded-2xl text-sm transition-colors hover:border-zinc-100">Back</button>
-            {step < 5 && (
-              <button 
-                onClick={step === 3 ? goToAudit : step === 4 ? finalGenerate : () => setStep(step + 1)} 
-                disabled={loading || (step === 2 && !isCoreReady)} 
-                className="flex-[3] py-5 bg-zinc-900 text-white font-black uppercase rounded-2xl text-sm shadow-xl transition-all disabled:opacity-50 hover:bg-black"
-              >
-                {loading ? "Synthesizing..." : "Continue →"}
-              </button>
-            )}
+            <button onClick={step === 3 ? goToAudit : step === 4 ? finalGenerate : () => setStep(step + 1)} disabled={loading} className="flex-[3] py-5 bg-zinc-900 text-white font-black uppercase rounded-2xl text-sm shadow-xl transition-all hover:bg-black">
+              {loading ? "Synthesizing..." : "Continue →"}
+            </button>
           </div>
         )}
       </div>
