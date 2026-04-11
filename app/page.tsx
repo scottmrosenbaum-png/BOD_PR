@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 
+// ... (Keeping your existing interfaces and constants exactly as they were)
 interface NarrativeField {
   id: string;
   label: string;
@@ -42,7 +43,7 @@ export default function Home() {
     eventSpecific: {} as any
   });
 
-  // --- COACH LOGIC ---
+  // --- COACH LOGIC (Keeping your existing logic) ---
   const getHookTip = () => {
     const hook = formData.newsHook.toLowerCase();
     if (!hook) return "💡 Tip: Start with the most important facts (Who/What/When).";
@@ -133,19 +134,36 @@ export default function Home() {
 
   const isCoreReady = formData.companyName.length > 2 && formData.newsHook.length > 20;
 
+  // --- UPDATED NAVIGATION LOGIC ---
   async function goToAudit() {
     setLoading(true);
     try {
       const [auditRes, clarifyRes] = await Promise.all([
-        fetch("/api/generate-press-release", { method: "POST", body: JSON.stringify({ ...formData, stage: "audit" }) }),
-        fetch("/api/generate-press-release", { method: "POST", body: JSON.stringify({ ...formData, stage: "clarify" }) })
+        fetch("/api/generate-press-release", { 
+          method: "POST", 
+          body: JSON.stringify({ ...formData, stage: "audit" }) 
+        }),
+        fetch("/api/generate-press-release", { 
+          method: "POST", 
+          body: JSON.stringify({ ...formData, stage: "clarify" }) 
+        })
       ]);
+
       const auditData = await auditRes.json();
       const clarifyData = await clarifyRes.json();
+
+      // THE MAGIC LEVER: Save data AND move the step
       setAudit({ score: auditData.score, feedback: auditData.feedback }); 
       setQuestions(clarifyData.questions || []);
-      setStep(4);
-    } finally { setLoading(false); }
+      
+      setStep(4); // <--- Moves from Step 3 (Synthesizing) to Step 4 (Audit results)
+
+    } catch (err) {
+      console.error(err);
+      alert("AI stalled. Check your OpenAI key or model name!");
+    } finally { 
+      setLoading(false); 
+    }
   }
 
   async function finalGenerate() {
@@ -153,11 +171,24 @@ export default function Home() {
     try {
       const res = await fetch("/api/generate-press-release", { 
         method: "POST", 
-        body: JSON.stringify({ ...formData, clarifyingAnswers: answers, stage: "final", style: "warm_journalist_pitch" }) 
+        body: JSON.stringify({ 
+          ...formData, 
+          clarifyingAnswers: answers, 
+          stage: "final", 
+          style: "warm_journalist_pitch" 
+        }) 
       });
-      setResult(await res.json());
-      setStep(5);
-    } finally { setLoading(false); }
+      
+      const data = await res.json();
+      setResult(data);
+      
+      setStep(5); // <--- Moves to the final Step 5 results page
+
+    } catch (err) {
+      console.error(err);
+    } finally { 
+      setLoading(false); 
+    }
   }
 
   const handleCopy = () => {
@@ -169,8 +200,8 @@ export default function Home() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const inputS = "w-full p-4 bg-white border-2 border-zinc-100 rounded-xl font-bold focus:border-[#FF8C00] outline-none transition-all placeholder:text-zinc-300 placeholder:font-normal text-sm";
-  const tallInputS = "w-full p-4 bg-white border-2 border-zinc-100 rounded-xl font-bold focus:border-[#FF8C00] outline-none transition-all min-h-[140px] text-sm";
+  const inputS = "w-full p-4 bg-white border-2 border-zinc-100 rounded-xl font-bold focus:border-brand-orange outline-none transition-all placeholder:text-zinc-300 placeholder:font-normal text-sm";
+  const tallInputS = "w-full p-4 bg-white border-2 border-zinc-100 rounded-xl font-bold focus:border-brand-orange outline-none transition-all min-h-[140px] text-sm";
   const labelS = "block text-[10px] font-black uppercase text-[#FF8C00] mb-1 tracking-widest";
 
   const CoachBox = ({ tip }: { tip: string }) => {
@@ -247,9 +278,9 @@ export default function Home() {
           )}
 
           {step === 3 && (
-            <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in">
+            <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in text-center">
               <h3 className="text-2xl font-black italic uppercase text-[#FF8C00]">Industry Narrative Details</h3>
-              <div className="bg-zinc-50 p-8 rounded-[3rem] border-2 border-zinc-100 grid md:grid-cols-2 gap-x-10 gap-y-4">
+              <div className="bg-zinc-50 p-8 rounded-[3rem] border-2 border-zinc-100 grid md:grid-cols-2 gap-x-10 gap-y-4 text-left">
                 {getFieldsByType(formData.announcementType).map((f) => (
                   <div key={f.id} className="space-y-1">
                     <label className={labelS}>{f.label}</label>
@@ -275,11 +306,18 @@ export default function Home() {
                   </div>
                 ))}
               </div>
-              <div className="space-y-1">
+              <div className="space-y-1 text-left">
                 <label className={labelS}>About {formData.companyName} (Boilerplate)</label>
                 <textarea className={`${inputS} h-28 text-xs font-normal`} value={formData.boilerplate} onChange={e => setFormData({...formData, boilerplate: e.target.value})} placeholder="History, location, mission..." />
                 <CoachBox tip={getBoilerplateTip()} />
               </div>
+              {/* Optional: Add a "Synthesizing" state directly here if you prefer it over the bottom button */}
+              {loading && (
+                 <div className="mt-8 flex flex-col items-center gap-4">
+                    <div className="animate-spin h-10 w-10 border-4 border-[#FF8C00] border-t-transparent rounded-full"></div>
+                    <p className="font-black italic uppercase text-[#FF8C00]">Synthesizing Strategy...</p>
+                 </div>
+              )}
             </div>
           )}
 
@@ -341,7 +379,7 @@ export default function Home() {
 
         {step > 1 && (
           <div className="px-8 py-6 bg-zinc-50 border-t border-zinc-100 flex gap-4">
-            <button onClick={() => setStep(step - 1)} className="flex-1 py-5 bg-white border-2 border-zinc-200 font-black uppercase rounded-2xl text-sm transition-colors hover:border-zinc-300">Back</button>
+            <button onClick={() => setStep(step - 1)} className="flex-1 py-5 bg-white border-2 border-zinc-100 font-black uppercase rounded-2xl text-sm transition-colors hover:border-zinc-100">Back</button>
             {step < 5 && (
               <button 
                 onClick={step === 3 ? goToAudit : step === 4 ? finalGenerate : () => setStep(step + 1)} 
