@@ -55,7 +55,7 @@ export async function POST(req: Request) {
   }
 
   const response = await openai.chat.completions.create({
-    model: "gpt-4-turbo-preview",
+    model: "model: gpt-4o",
     messages: [{ role: "system", content: "You are a specialized PR AI for the beverage and cannabis industry. Output valid JSON only." }, { role: "user", content: prompt }],
     response_format: { type: "json_object" },
   });
