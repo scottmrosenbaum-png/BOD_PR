@@ -185,8 +185,8 @@ export default function Home() {
                 </div>
                 <div className="space-y-4">
                   <div className="flex gap-2">
-                    <div className="flex-1"><label className={labelS}>Quote Name</label><input className={inputS} value={formData.quoteName} onChange={e => setFormData({...formData, quoteName: e.target.value})} /></div>
-                    <div className="flex-1"><label className={labelS}>Quote Title</label><input className={inputS} value={formData.quoteTitle} onChange={e => setFormData({...formData, quoteTitle: e.target.value})} /></div>
+                    <div className="flex-1"><label className={labelS}>Person to be Quoted</label><input className={inputS} value={formData.quoteName} onChange={e => setFormData({...formData, quoteName: e.target.value})} /></div>
+                    <div className="flex-1"><label className={labelS}>Their Job Title</label><input className={inputS} value={formData.quoteTitle} onChange={e => setFormData({...formData, quoteTitle: e.target.value})} /></div>
                   </div>
                   <div><label className={labelS}>Quote Text</label><textarea className={`${inputS} h-32`} value={formData.quoteText} onChange={e => setFormData({...formData, quoteText: e.target.value})} /><div className="mt-2 text-[10px] font-bold text-orange-600 uppercase italic">{getQuoteTip()}</div></div>
                 </div>
